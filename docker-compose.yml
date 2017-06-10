@@ -1,0 +1,23 @@
+version: '2'
+services:
+  mongo:
+    image: "mongo"
+  webapp:
+    image: "companion-webapp-gateway"
+    links:
+      - mongo
+    ports:
+     - "8080:8080"
+    expose:
+     - "5701"
+     - "54327"
+  nlp:
+    image: "companion-nlp-micro"
+    expose:
+     - "5701"
+     - "54327"
+  wordnet:
+      image: "companion-wordnet-micro"
+      expose:
+       - "5701"
+       - "54327"
