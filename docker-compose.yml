@@ -21,3 +21,8 @@ services:
       expose:
        - "5701"
        - "54327"
+  sentiment:
+        image: "companion-sentiment-micro"
+        expose:
+         - "5701"
+         - "54327"

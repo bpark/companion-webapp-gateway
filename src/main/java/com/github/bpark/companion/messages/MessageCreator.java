@@ -31,6 +31,7 @@ import rx.Observable;
 import rx.Single;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,6 +46,7 @@ public class MessageCreator extends ResourceHandler {
 
     private static final String NLP_ADDRESS = "nlp.analyze";
     private static final String WORDNET_ADDRESS = "wordnet.analysis";
+    private static final String SENTIMENT_ADDRESS = "sentiment.calculate";
 
     private static final String PARAM_ID = "id";
 
@@ -69,16 +71,29 @@ public class MessageCreator extends ResourceHandler {
                 analyzed.put("nlp", new JsonObject(analyzedMessage));
                 AnalyzedText analyzedText = Json.decodeValue(analyzedMessage, AnalyzedText.class);
 
-                List<Observable<Message<String>>> observables = wordnet(analyzedText);
+                List<Observable<Message<String>>> sentimentObservables = sentiment(analyzedText);
+                List<Observable<Message<String>>> wordnetObservables = wordnet(analyzedText);
 
-                zipWordnetResults(observables).subscribe(a -> {
+                Observable<JsonObject> sentiment = zip(sentimentObservables).flatMap(results -> {
+                    analyzed.put("sentiment", new JsonArray(results));
+                    return Observable.from(results);
+                });
 
-                    analyzed.put("wordnet", new JsonArray(a));
+                Observable<JsonObject> wordnet = zip(wordnetObservables).flatMap(results -> {
+                    analyzed.put("wordnet", new JsonArray(results));
+                    return Observable.from(results);
+                });
+
+                Observable.zip(Arrays.asList(sentiment, wordnet)).subscribe(results -> {
+
+                    analyzed.put("wordnet", new JsonArray(results));
 
                     store(analyzed).subscribe(id -> {
                         responseJson(routingContext, 201, new JsonObject().put(PARAM_ID, id));
                     });
                 });
+
+                zip()
             });
 
         });
@@ -104,8 +119,21 @@ public class MessageCreator extends ResourceHandler {
 
     }
 
+    private List<Observable<Message<String>>> sentiment(AnalyzedText analyzedText) {
+
+        List<Sentence> sentences = analyzedText.getSentences();
+
+        return sentences.stream().map(sentence -> {
+            String[] tokens = sentence.getTokens();
+
+            return vertx.eventBus().<String>rxSend(SENTIMENT_ADDRESS, Json.encode(tokens)).toObservable();
+
+        }).collect(Collectors.toList());
+
+    }
+
     @SuppressWarnings("unchecked")
-    private Observable<List<JsonObject>> zipWordnetResults(List<Observable<Message<String>>> observables) {
+    private Observable<List<JsonObject>> zip(List<Observable<Message<String>>> observables) {
         return Observable.zip(observables, objects -> {
 
             List<JsonObject> analyses = new ArrayList<>();
