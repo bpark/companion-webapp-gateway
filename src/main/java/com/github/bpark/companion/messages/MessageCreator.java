@@ -46,6 +46,7 @@ public class MessageCreator extends ResourceHandler {
     private static final String NLP_ADDRESS = "nlp.analyze";
     private static final String WORDNET_ADDRESS = "wordnet.analysis";
     private static final String SENTIMENT_ADDRESS = "sentiment.calculate";
+    private static final String CLASSIFICATION_ADDRESS = "classification.BASIC";
 
     private static final String PARAM_ID = "id";
 
@@ -72,6 +73,7 @@ public class MessageCreator extends ResourceHandler {
 
                 List<Observable<Message<String>>> sentimentObservables = sentiment(analyzedText);
                 List<Observable<Message<String>>> wordnetObservables = wordnet(analyzedText);
+                List<Observable<Message<String>>> classificationObservables = classification(analyzedText);
 
                 Observable<Boolean> sentiment = zip(sentimentObservables).flatMap(results -> {
                     analyzed.put("sentiment", new JsonArray(results));
@@ -83,7 +85,12 @@ public class MessageCreator extends ResourceHandler {
                     return Observable.just(true);
                 });
 
-                Observable.zip(sentiment, wordnet, (s, w) -> true).subscribe(results -> {
+                Observable<Boolean> classification = zip(classificationObservables).flatMap(results -> {
+                    analyzed.put("classification", new JsonArray(results));
+                    return Observable.just(true);
+                });
+
+                Observable.zip(sentiment, wordnet, classification, (s, w, c) -> true).subscribe(results -> {
 
                     store(analyzed).subscribe(id -> {
                         responseJson(routingContext, 201, new JsonObject().put(PARAM_ID, id));
@@ -123,6 +130,20 @@ public class MessageCreator extends ResourceHandler {
             String[] tokens = sentence.getTokens();
 
             return vertx.eventBus().<String>rxSend(SENTIMENT_ADDRESS, Json.encode(tokens)).toObservable();
+
+        }).collect(Collectors.toList());
+
+    }
+
+    private List<Observable<Message<String>>> classification(AnalyzedText analyzedText) {
+
+        List<Sentence> sentences = analyzedText.getSentences();
+
+        return sentences.stream().map(sentence -> {
+            String[] tokens = sentence.getTokens();
+            String joinedSentence = String.join(" ", tokens);
+
+            return vertx.eventBus().<String>rxSend(CLASSIFICATION_ADDRESS, joinedSentence).toObservable();
 
         }).collect(Collectors.toList());
 
