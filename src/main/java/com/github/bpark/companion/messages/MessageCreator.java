@@ -31,7 +31,6 @@ import rx.Observable;
 import rx.Single;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -74,26 +73,23 @@ public class MessageCreator extends ResourceHandler {
                 List<Observable<Message<String>>> sentimentObservables = sentiment(analyzedText);
                 List<Observable<Message<String>>> wordnetObservables = wordnet(analyzedText);
 
-                Observable<JsonObject> sentiment = zip(sentimentObservables).flatMap(results -> {
+                Observable<Boolean> sentiment = zip(sentimentObservables).flatMap(results -> {
                     analyzed.put("sentiment", new JsonArray(results));
-                    return Observable.from(results);
+                    return Observable.just(true);
                 });
 
-                Observable<JsonObject> wordnet = zip(wordnetObservables).flatMap(results -> {
+                Observable<Boolean> wordnet = zip(wordnetObservables).flatMap(results -> {
                     analyzed.put("wordnet", new JsonArray(results));
-                    return Observable.from(results);
+                    return Observable.just(true);
                 });
 
-                Observable.zip(Arrays.asList(sentiment, wordnet)).subscribe(results -> {
-
-                    analyzed.put("wordnet", new JsonArray(results));
+                Observable.zip(sentiment, wordnet, (s, w) -> true).subscribe(results -> {
 
                     store(analyzed).subscribe(id -> {
                         responseJson(routingContext, 201, new JsonObject().put(PARAM_ID, id));
                     });
                 });
 
-                zip()
             });
 
         });
