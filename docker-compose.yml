@@ -17,7 +17,12 @@ services:
      - "5701"
      - "54327"
   wordnet:
-      image: "companion-wordnet-micro"
-      expose:
-       - "5701"
-       - "54327"
+    image: "companion-wordnet-micro"
+    expose:
+     - "5701"
+     - "54327"
+  classification:
+    image: "companion-classification-micro"
+    expose:
+     - "5701"
+     - "54327"

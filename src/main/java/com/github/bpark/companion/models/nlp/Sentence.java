@@ -20,12 +20,18 @@ import java.util.List;
 @SuppressWarnings("unused")
 public class Sentence {
 
+    private String raw;
+
     private String[] tokens;
 
     private String[] posTags;
 
     private List<PersonName> personNames;
 
+
+    public String getRaw() {
+        return raw;
+    }
 
     public String[] getTokens() {
         return tokens;

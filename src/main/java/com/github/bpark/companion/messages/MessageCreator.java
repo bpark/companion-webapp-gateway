@@ -45,6 +45,7 @@ public class MessageCreator extends ResourceHandler {
 
     private static final String NLP_ADDRESS = "nlp.analyze";
     private static final String WORDNET_ADDRESS = "wordnet.analysis";
+    private static final String CLASSIFICATION_ADDRESS = "classification.BASIC";
 
     private static final String PARAM_ID = "id";
 
@@ -69,16 +70,24 @@ public class MessageCreator extends ResourceHandler {
                 analyzed.put("nlp", new JsonObject(analyzedMessage));
                 AnalyzedText analyzedText = Json.decodeValue(analyzedMessage, AnalyzedText.class);
 
-                List<Observable<Message<String>>> observables = wordnet(analyzedText);
+                List<Observable<Message<String>>> wordnetObservables = wordnet(analyzedText);
+                List<Observable<Message<String>>> classificationObservables = classification(analyzedText);
 
-                zipWordnetResults(observables).subscribe(a -> {
+                Observable<Boolean> wordnetResult = zipResults(wordnetObservables).flatMap(result -> {
+                    analyzed.put("wordnet", new JsonArray(result));
+                    return Observable.just(true);
+                });
+                Observable<Boolean> classificationResult = zipResults(classificationObservables).flatMap(result -> {
+                    analyzed.put("classification", new JsonArray(result));
+                    return Observable.just(true);
+                });
 
-                    analyzed.put("wordnet", new JsonArray(a));
-
+                Observable.zip(wordnetResult, classificationResult, (a, b) -> true).subscribe(a -> {
                     store(analyzed).subscribe(id -> {
                         responseJson(routingContext, 201, new JsonObject().put(PARAM_ID, id));
                     });
                 });
+
             });
 
         });
@@ -104,8 +113,17 @@ public class MessageCreator extends ResourceHandler {
 
     }
 
+    private List<Observable<Message<String>>> classification(AnalyzedText analyzedText) {
+        List<Sentence> sentences = analyzedText.getSentences();
+
+        return sentences.stream()
+                .map(sentence -> vertx.eventBus().<String>rxSend(CLASSIFICATION_ADDRESS, sentence.getRaw())
+                        .toObservable())
+                .collect(Collectors.toList());
+    }
+
     @SuppressWarnings("unchecked")
-    private Observable<List<JsonObject>> zipWordnetResults(List<Observable<Message<String>>> observables) {
+    private Observable<List<JsonObject>> zipResults(List<Observable<Message<String>>> observables) {
         return Observable.zip(observables, objects -> {
 
             List<JsonObject> analyses = new ArrayList<>();
