@@ -15,13 +15,13 @@
  */
 package com.github.bpark.companion.messages;
 
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
-import io.vertx.rxjava.ext.mongo.MongoClient;
 import io.vertx.rxjava.ext.web.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Single;
+import rx.Observable;
 
 /**
  * @author ksr
@@ -35,8 +35,8 @@ public class MessageRetriever extends ResourceHandler {
     private static final String PARAM_ID = "id";
 
 
-    public MessageRetriever(Vertx vertx, MongoClient mongoClient, Router router) {
-        super(vertx, mongoClient, router);
+    public MessageRetriever(Vertx vertx, Router router) {
+        super(vertx, router);
         get(router);
     }
 
@@ -47,14 +47,28 @@ public class MessageRetriever extends ResourceHandler {
 
             logger.info("requested message for id {}", id);
 
-            findOne(id).subscribe(result -> {
-
-                responseJson(routingContext, 200, result);
-            });
+            readMessage(id).subscribe(result -> responseJson(routingContext, 200, result));
         });
     }
 
-    private Single<JsonObject> findOne(String id) {
-        return mongoClient.rxFindOne(MESSAGES_COLLECTION, new JsonObject().put("_id", id), null);
+    private Observable<JsonObject> readMessage(String id) {
+        return vertx.sharedData().<String, String>rxGetClusterWideMap(id)
+                .toObservable()
+                .flatMap(map -> {
+                    Observable<String> nlp = map.rxGet("nlp").toObservable();
+                    Observable<String> wordnet = map.rxGet("wordnet").toObservable();
+                    Observable<String> classification = map.rxGet("classification").toObservable();
+
+                    return Observable.zip(nlp, wordnet, classification, (n, w, c) -> {
+                        JsonObject result = new JsonObject();
+                        result.put("nlp", new JsonObject(n));
+                        result.put("wordnet", new JsonArray(w));
+                        result.put("classification", new JsonArray(c));
+
+                        return result;
+                    });
+                });
     }
+
 }
+

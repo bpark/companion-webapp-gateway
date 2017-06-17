@@ -15,9 +15,7 @@
  */
 package com.github.bpark.companion.messages;
 
-import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
-import io.vertx.rxjava.ext.mongo.MongoClient;
 import io.vertx.rxjava.ext.web.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,16 +37,8 @@ public class MessagesApi {
 
     private MessagesApi(Vertx vertx, Router router) {
 
-        JsonObject mongoconfig = new JsonObject()
-                .put("connection_string", "mongodb://mongo:27017")
-                .put("db_name", "conversations");
-
-        MongoClient mongoClient = MongoClient.createShared(vertx, mongoconfig);
-
-        logger.info("MongoDB Client created.");
-
-        new MessageCreator(vertx, mongoClient, router);
-        new MessageRetriever(vertx, mongoClient, router);
+        new MessageCreator(vertx, router);
+        new MessageRetriever(vertx, router);
 
     }
 

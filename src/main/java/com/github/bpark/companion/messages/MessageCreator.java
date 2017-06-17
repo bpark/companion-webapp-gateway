@@ -15,24 +15,15 @@
  */
 package com.github.bpark.companion.messages;
 
-import com.github.bpark.companion.models.nlp.AnalyzedText;
-import com.github.bpark.companion.models.nlp.Sentence;
-import com.github.bpark.companion.models.nlp.TaggedText;
-import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
-import io.vertx.rxjava.core.eventbus.Message;
-import io.vertx.rxjava.ext.mongo.MongoClient;
 import io.vertx.rxjava.ext.web.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Single;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 /**
  * @author ksr
@@ -47,11 +38,13 @@ public class MessageCreator extends ResourceHandler {
     private static final String WORDNET_ADDRESS = "wordnet.analysis";
     private static final String CLASSIFICATION_ADDRESS = "classification.BASIC";
 
+    private static final String MESSAGE_KEY = "message";
+
     private static final String PARAM_ID = "id";
 
 
-    public MessageCreator(Vertx vertx, MongoClient mongoClient, Router router) {
-        super(vertx, mongoClient, router);
+    public MessageCreator(Vertx vertx, Router router) {
+        super(vertx, router);
         create(router);
     }
 
@@ -62,81 +55,45 @@ public class MessageCreator extends ResourceHandler {
 
             logger.info("requested analysis for text {}", content);
 
-            JsonObject analyzed = new JsonObject();
+            String id = UUID.randomUUID().toString();
 
-            nlp(content).subscribe(nlpMsg -> {
+            storeText(id, content).flatMap(this::nlp).flatMap(nlpId -> {
+                Observable<String> wordnetObservable = wordnet(id);
+                Observable<String> classificationObservable = classification(id);
 
-                String analyzedMessage = nlpMsg.body();
-                analyzed.put("nlp", new JsonObject(analyzedMessage));
-                AnalyzedText analyzedText = Json.decodeValue(analyzedMessage, AnalyzedText.class);
+                return Observable.zip(wordnetObservable, classificationObservable, (w, c) -> w);
 
-                List<Observable<Message<String>>> wordnetObservables = wordnet(analyzedText);
-                List<Observable<Message<String>>> classificationObservables = classification(analyzedText);
-
-                Observable<Boolean> wordnetResult = zipResults(wordnetObservables).flatMap(result -> {
-                    analyzed.put("wordnet", new JsonArray(result));
-                    return Observable.just(true);
-                });
-                Observable<Boolean> classificationResult = zipResults(classificationObservables).flatMap(result -> {
-                    analyzed.put("classification", new JsonArray(result));
-                    return Observable.just(true);
-                });
-
-                Observable.zip(wordnetResult, classificationResult, (a, b) -> true).subscribe(a -> {
-                    store(analyzed).subscribe(id -> {
-                        responseJson(routingContext, 201, new JsonObject().put(PARAM_ID, id));
-                    });
-                });
-
-            });
+            }).subscribe(combinedId -> responseJson(routingContext, 201, new JsonObject().put(PARAM_ID, id)));
 
         });
     }
 
-    private Observable<Message<String>> nlp(String content) {
-        return vertx.eventBus().<String>rxSend(NLP_ADDRESS, content).toObservable();
+    private Observable<String> nlp(String content) {
+        return vertx.eventBus().<String>rxSend(NLP_ADDRESS, content)
+                .flatMap(msg -> Single.just(msg.body()))
+                .toObservable();
     }
 
-    private List<Observable<Message<String>>> wordnet(AnalyzedText analyzedText) {
+    private Observable<String> wordnet(String id) {
 
-        List<Sentence> sentences = analyzedText.getSentences();
-
-        return sentences.stream().map(sentence -> {
-            String[] tokens = sentence.getTokens();
-            String[] posTags = sentence.getPosTags();
-
-            TaggedText taggedText = new TaggedText(tokens, posTags);
-
-            return vertx.eventBus().<String>rxSend(WORDNET_ADDRESS, Json.encode(taggedText)).toObservable();
-
-        }).collect(Collectors.toList());
-
+        return vertx.eventBus().<String>rxSend(WORDNET_ADDRESS, id)
+                .flatMap(msg -> Single.just(msg.body()))
+                .toObservable();
     }
 
-    private List<Observable<Message<String>>> classification(AnalyzedText analyzedText) {
-        List<Sentence> sentences = analyzedText.getSentences();
+    private Observable<String> classification(String id) {
 
-        return sentences.stream()
-                .map(sentence -> vertx.eventBus().<String>rxSend(CLASSIFICATION_ADDRESS, sentence.getRaw())
-                        .toObservable())
-                .collect(Collectors.toList());
+        return vertx.eventBus().<String>rxSend(CLASSIFICATION_ADDRESS, id)
+                .flatMap(msg -> Single.just(msg.body()))
+                .toObservable();
     }
 
-    @SuppressWarnings("unchecked")
-    private Observable<List<JsonObject>> zipResults(List<Observable<Message<String>>> observables) {
-        return Observable.zip(observables, objects -> {
-
-            List<JsonObject> analyses = new ArrayList<>();
-
-            for (Object object : objects) {
-                analyses.add(new JsonObject(((Message<String>)object).body()));
-            }
-
-            return analyses;
-        });
+    private Observable<String> storeText(String id, String content) {
+        logger.info("generated id: {}", id);
+        return vertx.sharedData().<String, String>rxGetClusterWideMap(id)
+                .flatMap(map -> map.rxPut(MESSAGE_KEY, content))
+                .flatMap(a -> Single.just(id))
+                .toObservable();
     }
 
-    private Single<String> store(JsonObject content) {
-        return mongoClient.rxInsert(MESSAGES_COLLECTION, content);
-    }
 }

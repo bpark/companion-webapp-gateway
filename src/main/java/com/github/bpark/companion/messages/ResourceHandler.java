@@ -17,7 +17,6 @@ package com.github.bpark.companion.messages;
 
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
-import io.vertx.rxjava.ext.mongo.MongoClient;
 import io.vertx.rxjava.ext.web.Router;
 import io.vertx.rxjava.ext.web.RoutingContext;
 
@@ -30,14 +29,11 @@ public abstract class ResourceHandler {
 
     protected Vertx vertx;
 
-    protected MongoClient mongoClient;
-
     protected Router router;
 
 
-    public ResourceHandler(Vertx vertx, MongoClient mongoClient, Router router) {
+    public ResourceHandler(Vertx vertx, Router router) {
         this.vertx = vertx;
-        this.mongoClient = mongoClient;
         this.router = router;
     }
 
