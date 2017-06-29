@@ -6,5 +6,7 @@ docker build -t companion-wordnet-micro ../companion-wordnet-micro
 
 docker build -t companion-classification-micro ../companion-classification-micro
 
+docker build -t companion-sentiment-micro ../companion-sentiment-micro
+
 docker build -t companion-webapp-gateway .
 

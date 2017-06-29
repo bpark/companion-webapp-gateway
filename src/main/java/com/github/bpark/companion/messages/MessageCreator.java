@@ -37,6 +37,7 @@ public class MessageCreator extends ResourceHandler {
     private static final String NLP_ADDRESS = "nlp.analyze";
     private static final String WORDNET_ADDRESS = "wordnet.analysis";
     private static final String CLASSIFICATION_ADDRESS = "classification.BASIC";
+    private static final String SENTIMENT_ADDRESS = "sentiment.calculate";
 
     private static final String MESSAGE_KEY = "message";
 
@@ -58,10 +59,11 @@ public class MessageCreator extends ResourceHandler {
             String id = UUID.randomUUID().toString();
 
             storeText(id, content).flatMap(this::nlp).flatMap(nlpId -> {
+                Observable<String> sentimentObservable = sentiment(id);
                 Observable<String> wordnetObservable = wordnet(id);
                 Observable<String> classificationObservable = classification(id);
 
-                return Observable.zip(wordnetObservable, classificationObservable, (w, c) -> w);
+                return Observable.zip(sentimentObservable, wordnetObservable, classificationObservable, (s, w, c) -> w);
 
             }).subscribe(combinedId -> responseJson(routingContext, 201, new JsonObject().put(PARAM_ID, id)));
 
@@ -69,7 +71,15 @@ public class MessageCreator extends ResourceHandler {
     }
 
     private Observable<String> nlp(String content) {
+
         return vertx.eventBus().<String>rxSend(NLP_ADDRESS, content)
+                .flatMap(msg -> Single.just(msg.body()))
+                .toObservable();
+    }
+
+    private Observable<String> sentiment(String id) {
+
+        return vertx.eventBus().<String>rxSend(SENTIMENT_ADDRESS, id)
                 .flatMap(msg -> Single.just(msg.body()))
                 .toObservable();
     }
@@ -89,6 +99,7 @@ public class MessageCreator extends ResourceHandler {
     }
 
     private Observable<String> storeText(String id, String content) {
+
         logger.info("generated id: {}", id);
         return vertx.sharedData().<String, String>rxGetClusterWideMap(id)
                 .flatMap(map -> map.rxPut(MESSAGE_KEY, content))
