@@ -61,9 +61,15 @@ public class MessageRetriever extends ResourceHandler {
                     Observable<String> sentiment = map.rxGet("sentiment").toObservable();
 
                     return Observable.zip(nlp, sentiment, wordnet, classification, (n, s, w, c) -> {
+
+                        logger.info("received nlp value {}", n);
+                        logger.info("received wordnet value {}", w);
+                        logger.info("received classification value {}", c);
+                        logger.info("received sentiment value {}", s);
+
                         JsonObject result = new JsonObject();
                         result.put("nlp", new JsonObject(n));
-                        result.put("wordnet", new JsonArray(w));
+                        result.put("wordnet", new JsonObject(w));
                         result.put("classification", new JsonArray(c));
                         result.put("sentiment", new JsonObject(s));
 
