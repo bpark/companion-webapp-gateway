@@ -70,7 +70,7 @@ public class MessageRetriever extends ResourceHandler {
                         JsonObject result = new JsonObject();
                         result.put("nlp", new JsonObject(n));
                         result.put("wordnet", new JsonObject(w));
-                        result.put("classification", new JsonArray(c));
+                        result.put("classification", new JsonObject(c));
                         result.put("sentiment", new JsonObject(s));
 
                         return result;
