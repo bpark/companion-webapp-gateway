@@ -32,6 +32,8 @@ public class MessageCreator extends ResourceHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(MessageCreator.class);
 
+    private static final int HTTP_CREATE = 201;
+
     private static final String PATH_CREATE = "/";
 
     private static final String NLP_ADDRESS = "nlp.analyze";
@@ -65,7 +67,7 @@ public class MessageCreator extends ResourceHandler {
 
                 return Observable.zip(sentimentObservable, wordnetObservable, classificationObservable, (s, w, c) -> w);
 
-            }).subscribe(combinedId -> responseJson(routingContext, 201, new JsonObject().put(PARAM_ID, id)));
+            }).subscribe(combinedId -> responseJson(routingContext, HTTP_CREATE, new JsonObject().put(PARAM_ID, id)));
 
         });
     }
