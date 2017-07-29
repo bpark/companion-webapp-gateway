@@ -27,3 +27,8 @@ services:
     expose:
      - "5701"
      - "54327"
+  dialogmanager:
+    image: "companion-dialogmanager-micro"
+    expose:
+     - "5701"
+     - "54327"
