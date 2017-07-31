@@ -41,6 +41,7 @@ public class MessageCreator extends ResourceHandler {
     private static final String CLASSIFICATION_ADDRESS = "classification.BASIC";
     private static final String SENTIMENT_ADDRESS = "sentiment.calculate";
     private static final String DIALOGMANAGER_ADDRESS = "dialog.rules";
+    private static final String NLG_ADDRESS = "nlg.generate";
 
     private static final String MESSAGE_KEY = "message";
 
@@ -68,7 +69,7 @@ public class MessageCreator extends ResourceHandler {
 
                 return Observable.zip(sentimentObservable, wordnetObservable, classificationObservable, (s, w, c) -> w);
 
-            }).flatMap(this::dialogManager)
+            }).flatMap(this::dialogManager).flatMap(this::nlg)
                     .subscribe(combinedId -> responseJson(routingContext, HTTP_CREATE, new JsonObject().put(PARAM_ID, id)));
 
         });
@@ -105,6 +106,13 @@ public class MessageCreator extends ResourceHandler {
     private Observable<String> dialogManager(String id) {
 
         return vertx.eventBus().<String>rxSend(DIALOGMANAGER_ADDRESS, id)
+                .flatMap(msg -> Single.just(msg.body()))
+                .toObservable();
+    }
+
+    private Observable<String> nlg(String id) {
+
+        return vertx.eventBus().<String>rxSend(NLG_ADDRESS, id)
                 .flatMap(msg -> Single.just(msg.body()))
                 .toObservable();
     }

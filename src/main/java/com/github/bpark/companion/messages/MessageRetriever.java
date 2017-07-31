@@ -15,7 +15,6 @@
  */
 package com.github.bpark.companion.messages;
 
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.ext.web.Router;
@@ -59,19 +58,23 @@ public class MessageRetriever extends ResourceHandler {
                     Observable<String> wordnet = map.rxGet("wordnet").toObservable();
                     Observable<String> classification = map.rxGet("classification").toObservable();
                     Observable<String> sentiment = map.rxGet("sentiment").toObservable();
+                    Observable<String> dialog = map.rxGet("dialogmanager").toObservable();
+                    Observable<String> nlg = map.rxGet("nlg").toObservable();
 
-                    return Observable.zip(nlp, sentiment, wordnet, classification, (n, s, w, c) -> {
+                    return Observable.zip(nlp, sentiment, wordnet, classification, nlg, (n, s, w, c, g) -> {
 
                         logger.info("received nlp value {}", n);
                         logger.info("received wordnet value {}", w);
                         logger.info("received classification value {}", c);
                         logger.info("received sentiment value {}", s);
+                        logger.info("received nlg value {}", g);
 
                         JsonObject result = new JsonObject();
                         result.put("nlp", new JsonObject(n));
                         result.put("wordnet", new JsonObject(w));
                         result.put("classification", new JsonObject(c));
                         result.put("sentiment", new JsonObject(s));
+                        result.put("g", g);
 
                         return result;
                     });

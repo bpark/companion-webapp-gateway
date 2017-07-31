@@ -12,6 +12,11 @@ services:
     expose:
      - "5701"
      - "54327"
+  nlg:
+    image: "companion-nlg-micro"
+    expose:
+     - "5701"
+     - "54327"
   wordnet:
     image: "companion-wordnet-micro"
     expose:
