@@ -22,6 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 /**
  * @author ksr
  */
@@ -32,6 +36,8 @@ public class MessageRetriever extends ResourceHandler {
     private static final String PATH_GET = "/:id";
 
     private static final String PARAM_ID = "id";
+
+    private enum MapKeys {nlp, wordnet, classification, sentiment, dialogmanager, nlg}
 
 
     public MessageRetriever(Vertx vertx, Router router) {
@@ -54,30 +60,26 @@ public class MessageRetriever extends ResourceHandler {
         return vertx.sharedData().<String, String>rxGetClusterWideMap(id)
                 .toObservable()
                 .flatMap(map -> {
-                    Observable<String> nlp = map.rxGet("nlp").toObservable();
-                    Observable<String> wordnet = map.rxGet("wordnet").toObservable();
-                    Observable<String> classification = map.rxGet("classification").toObservable();
-                    Observable<String> sentiment = map.rxGet("sentiment").toObservable();
-                    Observable<String> dialog = map.rxGet("dialogmanager").toObservable();
-                    Observable<String> nlg = map.rxGet("nlg").toObservable();
 
-                    return Observable.zip(nlp, sentiment, wordnet, classification, nlg, (n, s, w, c, g) -> {
+                    List<Observable<String>> observables =
+                            Stream.of(MapKeys.values())
+                                    .map(value -> map.rxGet(value.name()).toObservable())
+                                    .collect(Collectors.toList());
 
-                        logger.info("received nlp value {}", n);
-                        logger.info("received wordnet value {}", w);
-                        logger.info("received classification value {}", c);
-                        logger.info("received sentiment value {}", s);
-                        logger.info("received nlg value {}", g);
+                    return Observable.zip(observables, args -> {
 
                         JsonObject result = new JsonObject();
-                        result.put("nlp", new JsonObject(n));
-                        result.put("wordnet", new JsonObject(w));
-                        result.put("classification", new JsonObject(c));
-                        result.put("sentiment", new JsonObject(s));
-                        result.put("g", g);
+
+                        for (int i = 0; i < args.length; i++) {
+                            String arg = (String) args[i];
+                            MapKeys mapKey = MapKeys.values()[i];
+
+                            result.put(mapKey.name(), new JsonObject(arg));
+                        }
 
                         return result;
                     });
+
                 });
     }
 
