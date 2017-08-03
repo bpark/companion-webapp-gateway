@@ -29,9 +29,12 @@ services:
      - "54327"
   sentiment:
     image: "companion-sentiment-micro"
+    mem_limit: 150m
     expose:
      - "5701"
      - "54327"
+    environment:
+     - JAVA_OPTIONS=-Xmx32m
   dialogmanager:
     image: "companion-dialogmanager-micro"
     expose:
