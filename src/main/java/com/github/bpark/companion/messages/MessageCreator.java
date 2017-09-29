@@ -65,11 +65,10 @@ public class MessageCreator extends ResourceHandler {
             storeText(id, content).flatMap(this::nlp).flatMap(nlpId -> {
                 Observable<String> sentimentObservable = sentiment(id);
                 Observable<String> wordnetObservable = wordnet(id);
-                Observable<String> classificationObservable = classification(id);
 
-                return Observable.zip(sentimentObservable, wordnetObservable, classificationObservable, (s, w, c) -> w);
+                return Observable.zip(sentimentObservable, wordnetObservable, (s, w) -> w);
 
-            }).flatMap(this::dialogManager).flatMap(this::nlg)
+            }).flatMap(this::classification).flatMap(this::dialogManager).flatMap(this::nlg)
                     .subscribe(combinedId -> responseJson(routingContext, HTTP_CREATE, new JsonObject().put(PARAM_ID, id)));
 
         });
