@@ -1,48 +1,77 @@
 version: '2'
+
 services:
   webapp:
     image: "companion-webapp-gateway"
+    mem_limit: 512m
     ports:
      - "8080:8080"
     expose:
      - "5701"
      - "54327"
+    networks:
+     - comnet
   nlp:
     image: "companion-nlp-micro"
+    mem_limit: 512m
     expose:
      - "5701"
      - "54327"
+    networks:
+     - comnet
   nlg:
     image: "companion-nlg-micro"
+    mem_limit: 250m
     expose:
      - "5701"
      - "54327"
+    networks:
+     - comnet
   wordnet:
     image: "companion-wordnet-micro"
+    mem_limit: 250m
     expose:
      - "5701"
      - "54327"
+    networks:
+     - comnet
   classification:
     image: "companion-classification-micro"
+    mem_limit: 250m
     expose:
      - "5701"
      - "54327"
+    networks:
+     - comnet
   sentiment:
     image: "companion-sentiment-micro"
-    mem_limit: 150m
+    mem_limit: 200m
     expose:
      - "5701"
      - "54327"
-    environment:
-     - JAVA_OPTIONS=-Xmx32m
+    networks:
+     - comnet
   dialogmanager:
     image: "companion-dialogmanager-micro"
+    mem_limit: 250m
     expose:
      - "5701"
      - "54327"
+    networks:
+      - comnet
   jena:
     image: "stain/jena-fuseki"
+    mem_limit: 512m
+    expose:
+     - "3030"
     ports:
      - "3030:3030"
     environment:
      - ADMIN_PASSWORD=1afbda62-8ec9-47a3-a96f-40b58b13c150
+    networks:
+      comnet:
+        aliases:
+          - jena
+
+networks:
+  comnet:
