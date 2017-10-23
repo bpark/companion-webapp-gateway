@@ -10,7 +10,9 @@ services:
      - "5701"
      - "54327"
     networks:
-     - comnet
+      comnet:
+        aliases:
+         - webapp
   nlp:
     image: "companion-nlp-micro"
     mem_limit: 512m
@@ -58,7 +60,16 @@ services:
      - "5701"
      - "54327"
     networks:
-      - comnet
+     - comnet
+  webui:
+    image: "companion-ui"
+    mem_limit: 250m
+    expose:
+     - "80"
+    ports:
+     - "8081:80"
+    networks:
+     - comnet
   jena:
     image: "stain/jena-fuseki"
     mem_limit: 512m
